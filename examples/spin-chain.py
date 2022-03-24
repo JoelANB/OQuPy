@@ -15,13 +15,21 @@
 Example of a 5-site XYZ Heisenberg spin chain.
 """
 
+import os
 import sys
 sys.path.insert(0,'.')
+from time import time
+
+os.environ['OPENBLAS_NUM_THREADS'] = '1'
+os.environ['MKL_NUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+os.environ['NUMEXPR_NUM_THREADS'] = '1'
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 import oqupy
+import dill as pickle
 
 # -----------------------------------------------------------------------------
 
@@ -31,23 +39,31 @@ sz = oqupy.operators.sigma("z")
 up_dm = oqupy.operators.spin_dm("z+")
 down_dm = oqupy.operators.spin_dm("z-")
 
+def save_object(filename,obj):
+    with open(filename, 'wb') as output:  # Overwrites any existing file.
+        pickle.dump(obj, output)
+
+def load_object(filename):
+    with open(filename, 'rb') as input:
+        return pickle.load(input)
+
 # --- Parameters --------------------------------------------------------------
 
 # -- time steps --
 dt = 0.2
-num_steps = 20
+num_steps = 200
 
 # -- bath --
 alpha = 0.08
 omega_cutoff = 4.0
 temperature = 1.6
 pt_dkmax = 40
-pt_epsrel = 1.0e-5
+pt_epsrel = 1.0e-6
 
 # -- chain --
-N = 5
+N = 4
 h = np.array([[0.0, 0.0, 1.0]]*N)
-J = np.array([[1.3, 0.7, 1.2]]*(N-1))
+J = np.array([[0.3, 0.0, 0.0]]*(N-1))
 tebd_order = 2
 tebd_epsrel = 1.0e-5
 
@@ -55,11 +71,11 @@ tebd_epsrel = 1.0e-5
 # --- Compute process tensors -------------------------------------------------
 
 correlations = oqupy.PowerLawSD(alpha=alpha,
-                                zeta=1,
+                                zeta=3,
                                 cutoff=omega_cutoff,
                                 cutoff_type='exponential',
                                 temperature=temperature)
-bath = oqupy.Bath(0.5 * sy, correlations)
+bath = oqupy.Bath(0.5 * sz, correlations)
 pt_tempo_parameters = oqupy.TempoParameters(dt=dt,
                                             dkmax=pt_dkmax,
                                             epsrel=pt_epsrel)
@@ -111,16 +127,27 @@ pt_tebd_closed = oqupy.PtTebd(
 pt_tebd_open = oqupy.PtTebd(
     initial_augmented_mps=initial_augmented_mps,
     system_chain=system_chain,
-    process_tensors=[None, None, None, pt, pt],
+    process_tensors=[pt]*N,
     parameters=pt_tebd_params,
     dynamics_sites=dynamics_sites,
     chain_control=None)
 
 print("PT-TEBD computation (closed spin chain):")
+t = time()
 results_closed = pt_tebd_closed.compute(num_steps, progress_type="bar")
+results_closed["computation_time"] = time() - t
 print("PT-TEBD computation (open spin chain):")
+t = time()
 results_open = pt_tebd_open.compute(num_steps, progress_type="bar")
+results_open["computation_time"] = time() - t
 
+
+all_results = {
+    "N":N,
+    "results_closed":results_closed,
+    "results_closed":results_open}
+
+save_object(f"./examples/results/N{N:03d}.pkl",all_results)
 
 # -- plot results -------------------------------------------------------------
 
