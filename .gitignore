@@ -1,6 +1,7 @@
 # TEMPO file formats
 *.tempoDynamics
 *.processTensor
+*.pkl
 
 # local development
 local_dev/
