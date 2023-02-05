@@ -45,10 +45,10 @@ tempo_parameters = oqupy.TempoParameters(
 # oqupy.helpers.plot_correlations_with_parameters(correlations, tempo_parameters)
 
 start_time = -1.0
-# process_tensor = oqupy.pt_tempo_compute(bath=bath,
-#                                         start_time=start_time,
-#                                         end_time=1.0,
-#                                         parameters=tempo_parameters)
+process_tensor = oqupy.pt_tempo_compute(bath=bath,
+                                        start_time=start_time,
+                                        end_time=1.0,
+                                        parameters=tempo_parameters)
 
 def hamiltonian_t(t, delta=0.0):
     return delta/2.0 * op.sigma("z") \
@@ -59,57 +59,58 @@ system = oqupy.TimeDependentSystem(hamiltonian_t)
 
 # -----------------------------------------------------------------------------
 
-# print("-------- Example A --------")
+print("-------- Example A --------")
 
-# times_a, times_b, correlations = oqupy.compute_correlations(
-#         system=system,
-#         process_tensor=process_tensor,
-#         operator_a=op.sigma("x"),
-#         operator_b=op.sigma("z"),
-#         times_a=-0.5,
-#         times_b=0.5,
-#         time_order="full",
-#         initial_state=initial_state,
-#         start_time=start_time,
-#         progress_type="bar")
+times_a, times_b, correlations = oqupy.compute_correlations(
+        system=system,
+        process_tensor=process_tensor,
+        operator_a=op.sigma("+"),
+        operator_b=op.sigma("-"),
+        times_a=-0.5,
+        times_b=0.5,
+        time_order="full",
+        initial_state=initial_state,
+        start_time=start_time,
+        progress_type="bar")
 
-# print(f"times_a = {times_a}")
-# print(f"times_b = {times_b}")
-# print("Correlation matrix:")
-# print(correlations)
+print(f"times_a = {times_a}")
+print(f"times_b = {times_b}")
+print("Correlation matrix:")
+print(correlations)
 
-# control = oqupy.Control(2)
-# control.add_single(5, op.left_super(op.sigma("x")))
+control = oqupy.Control(2)
+control.add_single(5, op.left_super(op.sigma("+")))
 
-# s_xy_list = []
-# t_list = []
-# dynamics = oqupy.compute_dynamics(
-#     system=system,
-#     process_tensor=process_tensor,
-#     control=control,
-#     start_time=start_time,
-#     initial_state=initial_state)
-# t, s_x = dynamics.expectations(op.sigma("x"))
-# _, s_y = dynamics.expectations(op.sigma("y"))
-# _, s_z = dynamics.expectations(op.sigma("z"))
+s_xy_list = []
+t_list = []
+dynamics = oqupy.compute_dynamics(
+    system=system,
+    process_tensor=process_tensor,
+    control=control,
+    start_time=start_time,
+    initial_state=initial_state)
+t, s_m = dynamics.expectations(op.sigma("-"))
+_, s_x = dynamics.expectations(op.sigma("x"))
+_, s_y = dynamics.expectations(op.sigma("y"))
+_, s_z = dynamics.expectations(op.sigma("z"))
 
-# plt.figure(2)
+plt.figure(2)
 
-# for i, s_xyz in enumerate([s_x, s_y, s_z]):
-#     plt.plot(t, s_xyz.real, color=f"C{i}", linestyle="solid")
-#     plt.plot(t, s_xyz.imag, color=f"C{i}", linestyle="dotted")
-#     plt.xlabel(r'$t/$ps')
-#     plt.ylabel(r'$<\sigma_{xyz}>$')
-#     plt.scatter(times_b[0],correlations[0, 0].real, color="C2", marker="o")
-#     plt.scatter(times_b[0],correlations[0, 0].imag, color="C2", marker="x")
+for i, s_xyz in enumerate([s_m, s_x, s_y, s_z]):
+    plt.plot(t, s_xyz.real, color=f"C{i}", linestyle="solid")
+    plt.plot(t, s_xyz.imag, color=f"C{i}", linestyle="dotted")
+    plt.xlabel(r'$t/$ps')
+    plt.ylabel(r'$<\sigma_{-,x,y,z}>$')
+    plt.scatter(times_b[0],correlations[0, 0].real, color="C0", marker="o")
+    plt.scatter(times_b[0],correlations[0, 0].imag, color="C0", marker="x")
 
 # -----------------------------------------------------------------------------
 
 print("-------- Example B --------")
 
 control = oqupy.Control(2)
-# apply a left side acting sigma_x at the 5th time step.
-control.add_single(5, op.left_super(op.sigma("x")))
+# apply a left side acting sigma_+ at the 5th time step.
+control.add_single(5, op.left_super(op.sigma("+")))
 
 s_xy_list = []
 t_list = []
@@ -124,41 +125,42 @@ dynamics = tempo.compute(end_time=1.0)
 
 # measure complex(!) dynamics of sigma_{x,y,z}
 # for time steps n>=5 this gives the two time correlations
-# < sigma_{x,y,z}(n) sigma_{x}(5) >
+# < sigma_{-,x,y,z}(n) sigma_{+}(5) >
 
-t, s_x = dynamics.expectations(op.sigma("x"))
+t, s_m = dynamics.expectations(op.sigma("-"))
+_, s_x = dynamics.expectations(op.sigma("x"))
 _, s_y = dynamics.expectations(op.sigma("y"))
 _, s_z = dynamics.expectations(op.sigma("z"))
 
 plt.figure(3)
 
-for i, s_xyz in enumerate([s_x, s_y, s_z]):
+for i, s_xyz in enumerate([s_m, s_x, s_y, s_z]):
     plt.plot(t, s_xyz.real, color=f"C{i}", linestyle="solid")
     plt.plot(t, s_xyz.imag, color=f"C{i}", linestyle="dotted")
     plt.xlabel(r'$t/$ps')
-    plt.ylabel(r'$<\sigma_{xyz}>$')
+    plt.ylabel(r'$<\sigma_{-,x,y,z}>$')
 
 
 
 # -----------------------------------------------------------------------------
 
-# print("-------- Example C --------")
+print("-------- Example C --------")
 
-# times_a, times_b, correlations = oqupy.compute_correlations(
-#         system=system,
-#         process_tensor=process_tensor,
-#         operator_a=op.sigma("x"),
-#         operator_b=op.sigma("z"),
-#         times_a=(-0.4, 0.4),
-#         times_b=slice(8, 14),
-#         time_order="ordered",
-#         initial_state=initial_state,
-#         start_time=start_time,
-#         progress_type="bar")
+times_a, times_b, correlations = oqupy.compute_correlations(
+        system=system,
+        process_tensor=process_tensor,
+        operator_a=op.sigma("x"),
+        operator_b=op.sigma("z"),
+        times_a=(-0.4, 0.4),
+        times_b=slice(8, 14),
+        time_order="ordered",
+        initial_state=initial_state,
+        start_time=start_time,
+        progress_type="bar")
 
-# print(f"times_a = {times_a}")
-# print(f"times_b = {times_b}")
-# print("Shape of correlations matrix:")
-# print(np.abs(correlations) >= 0.0)
+print(f"times_a = {times_a}")
+print(f"times_b = {times_b}")
+print("Shape of correlations matrix:")
+print(np.abs(correlations) >= 0.0)
 
 plt.show()
