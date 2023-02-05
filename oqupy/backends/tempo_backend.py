@@ -270,6 +270,7 @@ class TempoBackend(BaseTempoBackend):
             influence: Callable[[int], ndarray],
             unitary_transform: ndarray,
             propagators: Callable[[int], Tuple[ndarray, ndarray]],
+            controls: Callable[[int], Tuple[ndarray, ndarray]],
             sum_north: ndarray,
             sum_west: ndarray,
             dkmax: int,
@@ -286,6 +287,7 @@ class TempoBackend(BaseTempoBackend):
             epsrel,
             config)
         self._propagators = propagators
+        self._controls = controls
 
     def initialize(self)-> Tuple[int, ndarray]:
         """
@@ -301,7 +303,14 @@ class TempoBackend(BaseTempoBackend):
         ToDo
         """
         self._step += 1
+        pre_1, post_1 = self._controls(self._step-1)
+        pre_2, post_2 = self._controls(self._step)
         prop_1, prop_2 = self._propagators(self._step-1)
+
+        if post_1 is not None:
+            prop_1 = post_1 @ prop_1
+        if pre_2 is not None:
+            prop_2 = prop_2 @ pre_2
         self._state = self.compute_system_step(self._step, prop_1, prop_2)
         return self._step, copy(self._state)
 

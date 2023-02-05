@@ -39,6 +39,7 @@ from oqupy.base_api import BaseAPIClass
 from oqupy.config import MAX_DKMAX, DEFAULT_TOLERANCE
 from oqupy.config import INTEGRATE_EPSREL, SUBDIV_LIMIT
 from oqupy.config import TEMPO_BACKEND_CONFIG
+from oqupy.control import Control
 from oqupy.correlations import BaseCorrelations
 from oqupy.dynamics import Dynamics, MeanFieldDynamics
 from oqupy.operators import commutator, acommutator
@@ -271,6 +272,7 @@ class Tempo(BaseAPIClass):
             parameters: TempoParameters,
             initial_state: ndarray,
             start_time: float,
+            control: Optional[Control] = None,
             backend_config: Optional[Dict] = None,
             name: Optional[Text] = None,
             description: Optional[Text] = None) -> None:
@@ -308,6 +310,11 @@ class Tempo(BaseAPIClass):
         self._dynamics = None
         self._backend_instance = None
 
+        if control is None:
+            control = Control(self._dimension)
+        check_isinstance(control, Control, "control")
+        self._control = control
+
         assert self._system.dimension == self._dimension, \
                "Hilbertspace dimensions are unequal: " \
             + "system ({}), ".format(self._system.dimension) \
@@ -315,6 +322,14 @@ class Tempo(BaseAPIClass):
             + "and bath coupling ({}), ".format(self._bath.dimension)
 
         self._prepare_backend()
+
+    def _controls(self, step: int) -> Tuple[ndarray, ndarray]:
+        """Return the pre and post control operations for a specific time
+        step."""
+        return self._control.get_controls(
+            step,
+            dt=self._parameters.dt,
+            start_time=self._start_time)
 
     def _influence(self, dk: int) -> ndarray:
         """Create the influence functional matrix for a time step distance
@@ -355,6 +370,7 @@ class Tempo(BaseAPIClass):
                 self._start_time,
                 self._parameters.subdiv_limit,
                 self._parameters.liouvillian_epsrel)
+        controls = self._controls
         sum_north = np.array([1.0]*(dim**2))
         sum_west = np.array([1.0]*(dim**2))
         dkmax = self._parameters.dkmax
@@ -364,6 +380,7 @@ class Tempo(BaseAPIClass):
                 influence,
                 unitary_transform,
                 propagators,
+                controls,
                 sum_north,
                 sum_west,
                 dkmax,
